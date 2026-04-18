@@ -130,10 +130,10 @@ export async function initCollaboration(
     logger.info('初始化协作，文档ID:', documentId)
 
     // 并行导入依赖
-    const [{ getWebSocketUrl }, Y, { WebsocketProvider }] = await Promise.all([
+    const [{ getWebSocketUrl }, Y, { HocuspocusProvider }] = await Promise.all([
       import('@/api/websocket'),
       import('yjs'),
-      import('y-websocket'),
+      import('@hocuspocus/provider'),
     ])
 
     // 获取 WebSocket URL
@@ -146,7 +146,13 @@ export async function initCollaboration(
     // 创建 Yjs 文档和 Provider
     const doc = new Y.Doc()
     const roomName = `document-${documentId}`
-    const wsProvider = new WebsocketProvider(wsUrl, roomName, doc, { connect: true })
+    const wsProvider = new HocuspocusProvider({
+      url: wsUrl,
+      name: roomName,
+      document: doc,
+      token: options.token || 'anonymous',
+      connect: true,
+    })
 
     // 工具管理器
     const timerManager = new TimerManager()
@@ -157,7 +163,7 @@ export async function initCollaboration(
     const userColor = getRandomColor()
 
     const setUserInfo = () => {
-      wsProvider.awareness.setLocalStateField('user', {
+      wsProvider.awareness?.setLocalStateField('user', {
         id: userInfo.id,
         name: userInfo.name,
         color: userColor,
@@ -165,7 +171,7 @@ export async function initCollaboration(
     }
 
     const getRoomStatus = () => {
-      const users = getUniqueUsers(wsProvider.awareness)
+      const users = getUniqueUsers(wsProvider.awareness!)
       return { users, count: users.length }
     }
 
@@ -225,7 +231,7 @@ export async function initCollaboration(
         }, CONFIG.RETRY_INTERVAL)
       }
     }
-    eventManager.on(wsProvider, 'sync', handleSync)
+    eventManager.on(wsProvider, 'synced', ({ state }: { state: boolean }) => handleSync(state))
 
     // 协作者变化（防抖）
     const debouncedUpdate = debounce(() => {
@@ -233,7 +239,9 @@ export async function initCollaboration(
       onCollaboratorsChange?.(count)
       onCollaboratorsListChange?.(users)
     }, CONFIG.DEBOUNCE_DELAY)
-    eventManager.on(wsProvider.awareness, 'change', debouncedUpdate.run)
+    if (wsProvider.awareness) {
+      eventManager.on(wsProvider.awareness, 'change', debouncedUpdate.run)
+    }
 
     // 清理函数
     const cleanup = () => {
@@ -264,7 +272,7 @@ export async function initCollaboration(
       provider: wsProvider,
       setEditor: (newEditor: any) => {
         currentEditor = newEditor
-        if (wsProvider.synced && !contentInitialized) {
+        if (wsProvider.isSynced && !contentInitialized) {
           handleSync(true)
         }
       },
@@ -282,7 +290,7 @@ export async function initCollaboration(
 }
 
 /**
- * 创建协作编辑扩展
+ * 创建协作编辑扩展（Collaboration + CollaborationCursor）
  */
 export async function createCollaborationExtensions(
   instance: CollaborationInstance | null,

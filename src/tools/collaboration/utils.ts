@@ -20,10 +20,10 @@ export function getRandomColor(): string {
 const noop = (..._args: unknown[]) => {}
 
 export const logger = {
-  info: noop,
-  warn: noop,
-  error: noop,
-  success: noop,
+  info: (...args: unknown[]) => console.log('[Collab]', ...args),
+  warn: (...args: unknown[]) => console.warn('[Collab]', ...args),
+  error: (...args: unknown[]) => console.error('[Collab]', ...args),
+  success: (...args: unknown[]) => console.log('[Collab]', ...args),
 }
 
 /** 定时器管理器 */

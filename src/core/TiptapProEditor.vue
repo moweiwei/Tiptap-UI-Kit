@@ -413,7 +413,9 @@ const initCollaborationFeature = async (initialContent: any, extensions: any[]) 
 
     // 添加协作扩展
     extensions.push(...collabExtensions)
-  } catch {}
+  } catch (err) {
+    console.error('[TiptapProEditor] Collaboration init failed:', err)
+  }
 }
 
 // ===== 编辑器初始化 =====

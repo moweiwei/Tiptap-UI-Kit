@@ -63,7 +63,7 @@ export default defineConfig({
         /^#\/.*/, // Internal APIs (collaboration, etc.)
         'yjs',
         'y-prosemirror',
-        'y-websocket',
+        '@hocuspocus/provider',
         /^y-.*/,
         'lowlight',
         /^prosemirror-.*/,

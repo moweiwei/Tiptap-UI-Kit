@@ -1,6 +1,6 @@
 <template>
   <a-config-provider :theme="antdTheme">
-  <div class="demo-app" :data-theme="theme" :class="{ 'editor-mode': !showLanding && demoMode === 'full', 'inline-mode': !showLanding && demoMode === 'inline' }">
+  <div class="demo-app" :data-theme="theme" :class="{ 'editor-mode': !showLanding && (demoMode === 'full' || demoMode === 'collab'), 'inline-mode': !showLanding && demoMode === 'inline' }">
     <!-- Landing Page -->
     <LandingPage
       v-if="showLanding"
@@ -29,6 +29,13 @@
             @click="demoMode = 'full'"
           >
             Full Editor
+          </button>
+          <button
+            class="demo-mode-btn"
+            :class="{ 'demo-mode-btn--active': demoMode === 'collab' }"
+            @click="demoMode = 'collab'"
+          >
+            Collaboration
           </button>
           <button
             class="demo-mode-btn"
@@ -97,6 +104,48 @@
       </main>
     </template>
 
+    <!-- Collaboration Demo Mode -->
+    <template v-else-if="demoMode === 'collab'">
+      <main class="demo-main demo-main--collab">
+        <div class="collab-panel">
+          <div class="collab-controls">
+            <label class="collab-label">Document ID:</label>
+            <input
+              v-model="collabDocId"
+              class="collab-input"
+              placeholder="Enter document ID (e.g. test-doc-1)"
+            />
+            <button class="collab-btn" @click="joinDocument">
+              {{ collabJoined ? 'Switch Document' : 'Join Document' }}
+            </button>
+            <button v-if="collabJoined" class="collab-btn collab-btn--new" @click="createNewDocument">
+              New Document
+            </button>
+          </div>
+          <div v-if="collabJoined" class="collab-status">
+            Connected to: <strong>{{ activeDocId }}</strong>
+            <span class="collab-hint">Open this page in another tab with the same Document ID to test collaboration</span>
+          </div>
+        </div>
+        <div v-if="collabJoined" class="demo-card">
+          <TiptapProEditor
+            ref="collabEditorRef"
+            :key="'collab-' + activeDocId"
+            :document-id="activeDocId"
+            :locale="locale"
+            :features="collabFeatures"
+            :version="'advanced'"
+            @update="handleUpdate"
+            @collaborators-change="(count: number) => collabUserCount = count"
+          />
+        </div>
+        <div v-else class="collab-placeholder">
+          Enter a Document ID above and click "Join Document" to start collaborating.
+          <br/>Two browser tabs with the same Document ID will sync in real-time.
+        </div>
+      </main>
+    </template>
+
     <!-- Inline Plugin Demo Mode -->
     <template v-else>
       <main class="demo-main demo-main--inline">
@@ -131,8 +180,8 @@ import '../src/styles/device-responsive.css'
 // Landing page state
 const showLanding = ref(true)
 
-// Demo mode: 'full' = full editor, 'inline' = inline + plugins
-const demoMode = ref<'full' | 'inline'>('full')
+// Demo mode: 'full' = full editor, 'inline' = inline + plugins, 'collab' = collaboration
+const demoMode = ref<'full' | 'inline' | 'collab'>('full')
 
 const handleStartDemo = () => {
   showLanding.value = false
@@ -206,6 +255,33 @@ onMounted(() => {
     aiStatus.value = '❌ No API key in .env'
   }
 })
+
+// ===== Collaboration Demo =====
+const collabDocId = ref('test-doc-1')
+const activeDocId = ref('')
+const collabJoined = ref(false)
+const collabUserCount = ref(0)
+const collabEditorRef = ref<InstanceType<typeof TiptapProEditor> | null>(null)
+
+const collabFeatures = computed(() => ({
+  ...PRESET_CONFIGS.full.features,
+  collaboration: true,
+  headerNav: true,
+  footerNav: true,
+}))
+
+const joinDocument = () => {
+  if (!collabDocId.value.trim()) return
+  activeDocId.value = collabDocId.value.trim()
+  collabJoined.value = true
+}
+
+const createNewDocument = () => {
+  const id = 'doc-' + Date.now().toString(36)
+  collabDocId.value = id
+  activeDocId.value = id
+  collabJoined.value = true
+}
 
 // Sample content
 const sampleContent = `
@@ -596,7 +672,7 @@ const copyJson = async () => {
     gap: 16px;
     padding: 16px 20px;
   }
-  
+
   .demo-main {
     padding: 20px;
   }
@@ -605,5 +681,115 @@ const copyJson = async () => {
     flex-direction: column;
     gap: 8px;
   }
+}
+
+/* ===== Collaboration Demo ===== */
+.demo-main--collab {
+  flex-direction: column;
+  padding: 20px 40px;
+  overflow: auto;
+}
+
+.collab-panel {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  backdrop-filter: blur(10px);
+}
+
+.collab-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.collab-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.collab-input {
+  padding: 8px 14px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  outline: none;
+  min-width: 220px;
+}
+
+.collab-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.collab-input:focus {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.collab-btn {
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(82, 196, 26, 0.8);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.collab-btn:hover {
+  background: rgba(82, 196, 26, 1);
+}
+
+.collab-btn--new {
+  background: rgba(24, 144, 255, 0.8);
+}
+
+.collab-btn--new:hover {
+  background: rgba(24, 144, 255, 1);
+}
+
+.collab-status {
+  margin-top: 12px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.collab-status strong {
+  color: #52c41a;
+}
+
+.collab-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.collab-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.8;
+  padding: 60px 20px;
+}
+
+.demo-main--collab .demo-card {
+  flex: 1;
+  min-height: 0;
+  border-radius: 12px;
+  overflow: hidden;
 }
 </style>

@@ -37,6 +37,8 @@ export interface CollaborationInitOptions {
   initialContent?: string | object
   /** 编辑器实例（用于设置初始内容） */
   editor?: any
+  /** Hocuspocus 认证令牌 */
+  token?: string
   /** 用户信息获取函数 */
   getUserInfo?: () => UserInfo
   /** 协作状态变化回调 */

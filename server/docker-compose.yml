@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    environment:
+      POSTGRES_DB: tiptap_collab
+      POSTGRES_USER: tiptap
+      POSTGRES_PASSWORD: tiptap_secret
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tiptap -d tiptap_collab"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  hocuspocus:
+    build: .
+    ports: ["443:1234"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://tiptap:tiptap_secret@postgres:5432/tiptap_collab
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      HOCUSPOCUS_PORT: 1234
+
+volumes:
+  pgdata:
